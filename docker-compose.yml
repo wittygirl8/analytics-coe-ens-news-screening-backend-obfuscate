@@ -1,0 +1,7 @@
+version: '3.8'
+
+services:
+  analytics-coe-ens-svc:
+    image: pythonwebapp
+    ports:
+      - 9001:9001

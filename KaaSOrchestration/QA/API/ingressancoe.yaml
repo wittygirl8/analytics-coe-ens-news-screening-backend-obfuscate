@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kaas-analytics-coe-ens-api-ingress-qa
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 64k
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: "/$1"
+    #nginx.ingress.kubernetes.io/enable-modsecurity: "false"
+  namespace: acoe-qa-env-apps   #acoedev-k8s15n-dev   
+    
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: analytics-coe.qa.ey.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: kaas-analytics-coe-ens-api-svc-qa
+            port:
+              number: 9001
+        path: /redoc
+        pathType: Prefix
+  tls:
+  - hosts:
+    - analytics-coe.qa.ey.com
+    secretName: ancoe-qa-tls
+status:
+  loadBalancer:
+    ingress:
+    - ip: 48.211.138.239
+
+                # Please edit the object below. Lines beginning with a '#' will be ignored,
+# and an empty file will abort the edit. If an error occurs while saving this file will be
+# reopened with the relevant failures.

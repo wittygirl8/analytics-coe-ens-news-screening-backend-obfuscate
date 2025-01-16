@@ -1,0 +1,257 @@
+trigger:
+  branches:
+    include:
+      - develop
+        # Replace with your main branch name
+variables:
+- group: jfrog-motif-crdentials
+- group: Analytics-coe-image-replacement
+# Build ASP.NET Core project using Azure Pipelines
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core?view=vsts
+parameters:
+- name : artifactBuildId
+  displayName: Artifact Build Id
+  type: string
+  default: latest
+- name: Build
+  displayName: Build
+  type: boolean
+  default: true
+- name: Deploy
+  displayName: Deploy
+  type: boolean
+  default: false
+
+# define the VM image I want to use for my build
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- ${{ if eq(parameters.Build, true) }}:
+    - stage: Build
+      displayName: Analytics-coe-ens-api-QA - Build
+      jobs:
+      - job:
+        steps:
+    #persistCredentials: true
+        #- task: NodeTool@0
+          #inputs:
+            #versionSpec: '20.10.0'
+          #displayName: 'Install Node.js'
+
+   
+
+        #- task: npmAuthenticate@0
+          #inputs:
+            #workingFile: '$(System.DefaultWorkingDirectory)/.npmrc'
+            #customEndpoint: 'EYCTPEU_NPM_SERVICE_CONNECTION'
+          #displayName: 'Authenticate with Jfrog registry'
+
+
+
+
+        #- task: qetza.replacetokens.replacetokens-task.replacetokens@5 
+          #inputs:     
+          #targetFiles: .npmrc     
+    #      encoding: ascii    
+    #      tokenPattern: azpipelines
+#       - task: qetza.replacetokens.replacetokens-task.replacetokens@5
+  #      inputs:
+    #      rootDirectory: '.'
+    #      targetFiles: '.npmrc'
+    ##     tokenPattern: 'default'
+    #      writeBOM: true
+    #actionOnMissing: 'warn'
+    #keepToken: false
+    #actionOnNoFiles: 'continue'
+    #enableTransforms: false
+    #enableRecursion: false
+    #useLegacyPattern: false
+    #enableTelemetry: true
+
+        #- task: geeklearningio.gl-vsts-tasks-yarn.yarn-installer-task.YarnInstaller@3  
+          #displayName: 'Use Yarn 1.x'
+        #- task: geeklearningio.gl-vsts-tasks-yarn.yarn-task.Yarn@3
+          #displayName: 'Yarn Init'
+        #- task: geeklearningio.gl-vsts-tasks-yarn.yarn-task.Yarn@3
+          #inputs:
+            #command: 'install'
+            #arguments: '--frozen-lockfile'
+            #cwd: '$(System.DefaultWorkingDirectory)'
+          #displayName: 'Install dependencies'
+      
+        #- task: geeklearningio.gl-vsts-tasks-yarn.yarn-task.Yarn@3
+          #inputs:
+            #command: 'run'
+            #arguments: 'build'
+            #cwd: '$(System.DefaultWorkingDirectory)'
+            #customEndpoint: 'EYCTPEU_NPM_SERVICE_CONNECTION'
+          #displayName: 'Run build script'
+        #- task: geeklearningio.gl-vsts-tasks-yarn.yarn-task.Yarn@3
+          #displayName: 'Yarn Build'
+          #inputs:
+            #projectDirectory: '$(System.DefaultWorkingDirectory)'
+            #customEndpoint: 'EYCTPEU_NPM_SERVICE_CONNECTION'
+            #contents: '**'
+
+    #arguments: 'deploy:prod:hosting'
+        #- task: CopyFiles@2
+          #inputs:
+             #sourceFolder: 'build' 
+             #contents: '**' 
+             #targetFolder: '$(Build.ArtifactStagingDirectory)'
+             #cleanTargetFolder: true
+        #- task: CopyFiles@2
+          #inputs:
+            #sourceFolder: '$(buildOutputFolder)' 
+            #contents: '**/*' 
+            #targetFolder: '$(Build.ArtifactStagingDirectory)'
+            #cleanTargetFolder: true 
+
+            ## Archive the files into a zip file for publishing
+        #- task: ArchiveFiles@2
+          #inputs:
+            #rootFolderOrFile: $(Build.ArtifactStagingDirectory)
+            #archiveType: 'zip'
+            #archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+            #includeRootFolder: false
+
+## Publish the zip file
+#- task: PublishBuildArtifacts@1
+  #inputs:
+    #pathtoPublish: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'  
+        
+       
+       
+        - task: Docker@2
+          displayName: 'Build API Image'
+          inputs:
+            containerRegistry: 'Ancoe-DOCKER-QA'
+            repository: 'analyticscoe-docker-qa/analyticsensapiapp'
+            command: 'buildAndPush'
+            Dockerfile: 'Dockerfile'
+            tags: 'v$(Build.BuildNumber)'
+            addPipelineData: false
+            addBaseImageData: false
+
+        - task: PublishPipelineArtifact@1
+          displayName: 'Publish Artifact: Analyticscoe-QA-api'
+          inputs:
+            targetPath: '$(System.DefaultWorkingDirectory)'
+            artifact: 'Analyticscoe-QA-api'
+            publishLocation: 'pipeline'
+    
+- ${{ if eq(parameters.Deploy, true) }}:
+    - stage: Deploy
+      displayName: Deploy
+      jobs:
+        - deployment: Deploy
+          environment: Analyticscoe-QA-api
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: none
+                  - download: none      
+               
+                  - task: DownloadPipelineArtifact@2
+                    inputs:
+                      buildType: 'current'
+                      artifactName: 'Analyticscoe-QA-api'
+                      targetPath: '$(System.DefaultWorkingDirectory)'
+                  - task: qetza.replacetokens.replacetokens-task.replacetokens@5
+                    inputs:
+                      rootDirectory: '.'
+                      targetFiles: '$(System.DefaultWorkingDirectory)/KaaSOrchestration/QA/API/Deployment.yaml'
+                      encoding: 'auto'
+                      tokenPattern: 'default'
+                      writeBOM: true
+                      actionOnMissing: 'warn'
+                      keepToken: false
+                      actionOnNoFiles: 'continue'
+                      enableTransforms: false
+                      enableRecursion: false
+                      useLegacyPattern: false
+                      enableTelemetry: true
+
+                  #- task: Kubernetes@1
+                    #displayName: jfrog secrets
+                    #inputs:
+                      #connectionType: 'Kubernetes Service Connection'
+                      #kubernetesServiceEndpoint: 'KAAS_CTI_AI_UAT_CONNECTION'
+                      #command: 'apply'
+                      #useConfigurationFile: true
+                      #configuration: '$(System.DefaultWorkingDirectory)/KaaSOrchestration/UAT/UI/ctiaijfrogsecret.yaml'
+                  #- task: Kubernetes@1
+                    #displayName: create service 
+                    #inputs:
+                      #kubernetesServiceEndpoint: 'KAAS_CTI_AI_UAT_CONNECTION'
+                      #namespace: 'cyberopsctiai-k8s10a-uat'
+                      #command: 'apply'
+                      #useConfigurationFile: true
+                      #configuration: '$(System.DefaultWorkingDirectory)/KaaSOrchestration/UAT/UI/service.yaml'   
+              
+                  #- task: Kubernetes@1
+                    #displayName: UI contianer Delete
+                    #inputs:
+                      #connectionType: 'Kubernetes Service Connection'
+                      #kubernetesServiceEndpoint: 'acoe-dev-kube-connection'
+                      #namespace: 'acoedev-k8s15n-dev'
+                      #command: 'delete'
+                      #useConfigurationFile: true
+                      #configuration: '$(System.DefaultWorkingDirectory)/KaaSOrchestration/Dev/UI/Deployment.yaml'
+                  - task: Kubernetes@1
+                    displayName: API contianer Deploy
+                    inputs:
+                      connectionType: 'Kubernetes Service Connection'
+                      kubernetesServiceEndpoint: 'acoe-dev-kube-st-connection'
+                      namespace: 'acoe-qa-env-apps'
+                      command: 'apply'
+                      useConfigurationFile: true
+                      configuration: '$(System.DefaultWorkingDirectory)/KaaSOrchestration/QA/APi/ingressancoe.yaml' 
+                  - task: Kubernetes@1
+                    displayName: API contianer Deploy
+                    inputs:
+                      connectionType: 'Kubernetes Service Connection'
+                      kubernetesServiceEndpoint: 'acoe-dev-kube-st-connection'
+                      namespace: 'acoe-qa-env-apps'
+                      command: 'apply'
+                      useConfigurationFile: true
+                      configuration: '$(System.DefaultWorkingDirectory)/KaaSOrchestration/QA/API/service.yaml'     
+
+                  - task: Kubernetes@1
+                    displayName: API contianer Deploy
+                    inputs:
+                      connectionType: 'Kubernetes Service Connection'
+                      kubernetesServiceEndpoint: 'acoe-dev-kube-st-connection'
+                      namespace: 'acoe-qa-env-apps'
+                      command: 'apply'
+                      useConfigurationFile: true
+                      configuration: '$(System.DefaultWorkingDirectory)/KaaSOrchestration/QA/API/Deployment.yaml'    
+
+           
+ 
+                  
+   
+   ## Copy the client to the staging directory
+
+
+## Archive the files into a zip file for publishing
+#- task: ArchiveFiles@2
+  #inputs:
+    #rootFolderOrFile: $(Build.ArtifactStagingDirectory)
+    #archiveType: 'zip'
+    #archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    #includeRootFolder: false
+
+## Publish the zip file
+#- task: PublishBuildArtifacts@1
+  #inputs:
+    #pathtoPublish: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+
+## Copy the client to the staging directory
+#- task: DownloadPipelineArtifact@2
+  #inputs:
+    #buildType: 'current'
+    #artifactName: 'drop'
+    #targetPath: '$(System.DefaultWorkingDirectory)'

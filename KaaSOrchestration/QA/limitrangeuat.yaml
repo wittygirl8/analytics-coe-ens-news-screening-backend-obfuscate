@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"LimitRange","metadata":{"annotations":{},"creationTimestamp":"2023-04-20T09:40:37Z","name":"cyberopscrd-k8s0r0-uat-default","namespace":"cyberopscrd-k8s0r0-uat","resourceVersion":"5533606271","uid":"75b77804-453b-4c1c-ba97-13b5d4bf2401"},"spec":{"limits":[{"default":{"cpu":"100m","memory":"128Mi"},"defaultRequest":{"cpu":"10m","memory":"32Mi"},"type":"Container"},{"max":{"cpu":"4","memory":"4Gi"},"min":{"cpu":"5m","memory":"16Mi"},"type":"Pod"}]}}
+  creationTimestamp: "2023-04-20T09:40:37Z"
+  name: cyberopsctiai-k8s10a-uat-default
+  namespace: cyberopsctiai-k8s10a-uat
+  resourceVersion: "5814907497"
+  uid: 75b77804-453b-4c1c-ba97-13b5d4bf2401
+spec:
+  limits:
+  - default:
+      cpu: 100m
+      memory: 128Mi
+    defaultRequest:
+      cpu: 10m
+      memory: 32Mi
+    type: Container
+  - max:
+      cpu: "4"
+      memory: 4Gi
+    min:
+      cpu: 5m
+      memory: 16Mi
+    type: Pod
